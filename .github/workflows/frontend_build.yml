@@ -1,0 +1,54 @@
+name: Frontend Build
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend_build.yml"
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend_build.yml"
+
+jobs:
+  Build_On_Ubuntu:
+    runs-on: ubuntu-latest
+    env:
+      CI: false
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        id: pnpm-cache
+        with:
+          # Caches the pnpm store which is used to save downloaded packages
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Node.js dependencies
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: ./frontend
+        run: pnpm run build
